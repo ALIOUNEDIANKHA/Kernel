@@ -180,6 +180,54 @@ class KernelLogisticRegression():
         return np.sign(self.decision_function(X) @ self.alpha)
 
 
+class KernelRidge():
+    '''
+    Kernel Ridge Regression
+    
+    Methods
+    ----
+    fit
+    predict
+    '''
+    kernels_ = {
+    'linear': linear_kernel,
+    'polynomial': polynomial_kernel,
+    'rbf': rbf_kernel,
+    # 'custom_kernel': custom_kernel, # Your kernel
+    }
+    def __init__(self, sigma=None, lambd=0.1,kernel='rbf'):
+        
+        self.kernel = self.kernels_[kernel]
+        self.sigma = sigma
+        self.lambd = lambd
+
+    def fit(self, X, y):
+        n, p = X.shape
+        assert (n == len(y))
+    
+        self.X_train = X
+        
+        # Compute default sigma from data
+        if self.sigma is None:
+            self.sigma = sigma_from_median(X)
+        if self.kernel == 'rbf':
+            A = self.kernel(X, X, sigma=self.sigma) + n * self.lambd * np.eye(n)
+        else:
+            A = self.kernel(X, X) + n * self.lambd * np.eye(n)
+        
+        ## self.alpha = (K + n lambda I)^-1 y
+        # Solution to A x = y
+        self.alpha = np.linalg.solve(A , y)
+
+        return self
+        
+    def predict(self, X):
+        # Prediction rule: 
+        if self.kernel == 'rbf':
+            K_x = self.kernel(X, self.X_train, sigma=self.sigma)
+        else:
+            K_x = self.kernel(X, self.X_train)
+        return K_x.dot(self.alpha)
 # In[ ]:
 
 
@@ -209,7 +257,7 @@ Xt = sc.transform(Xt)
 # In[ ]:
 
 
-def submission():   
+def KLRR():   
     best_lambd = 5.
     kernel = 'rbf'
     degree = 2
@@ -221,7 +269,20 @@ def submission():
     pred = pd.DataFrame(y_pred>0, columns = ["Covid"])
     #stack the data frame for id and pred
     result = pd.DataFrame(np.hstack([iD,pred]), columns = ["ID", "Covid"])
-    result.to_csv("Yte.csv",index=False)
+    result.to_csv("ResultsKLRR.csv",index=False)
+    
+def KRR():   
+    best_lambd = 6.55128556859551e-05
+    # Parameters already specified in the tune function
+    model = KernelRidge(lambd=best_lambd)
+    # For logistic regression, we have to change the label to {-1,1} but here we change it back to {1,0}.
+    y = y>0
+    y_pred = model.fit(X, y).predict(Xt)
+    #data frame for prediction
+    pred = pd.DataFrame(y_pred>0.5, columns = ["Covid"])
+    #stack the data frame for id and pred
+    result = pd.DataFrame(np.hstack([iD,pred]), columns = ["ID", "Covid"])
+    result.to_csv("ResultsKRR.csv",index=False)
 
 
 # In[ ]:
